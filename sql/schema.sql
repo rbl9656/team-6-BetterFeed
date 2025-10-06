@@ -30,6 +30,20 @@ CREATE TABLE reels (
 CREATE INDEX idx_reels_user_id ON reels(user_id);
 CREATE INDEX idx_reels_created_at ON reels(created_at DESC);
 
+-- Auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_reels_updated_at 
+    BEFORE UPDATE ON reels 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================
 -- INTERACTIONS TABLE
 -- ============================================

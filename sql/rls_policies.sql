@@ -51,11 +51,14 @@ CREATE POLICY "Users can delete their own reels"
 -- ============================================
 -- INTERACTIONS POLICIES
 -- ============================================
+-- Note: Interactions are publicly viewable so users can see engagement metrics 
+-- (like counts, save counts) on all reels. Users can only create/delete 
+-- their own interactions.
 
--- Users can view their own interactions
-CREATE POLICY "Users can view their own interactions"
+-- Anyone can view all interactions (needed for engagement metrics)
+CREATE POLICY "Anyone can view all interactions"
     ON interactions FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (true);
 
 -- Users can create their own interactions
 CREATE POLICY "Users can create their own interactions"
