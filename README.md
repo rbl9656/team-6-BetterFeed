@@ -2,6 +2,8 @@
 
 A smart feed application for scrolling through condensed academic articles presented in a TikTok-style interface. Users can discover, interact with, and save articles from a curated feed powered by real news data.
 
+**Team Members**: Temirlan Amanzhanov, Kyle Clary, Robbie Liesegang, Veyd Trivedi
+
 **Note**: Currently using NewsAPI as a placeholder data source. Future versions will integrate with academic article APIs and include AI-powered article summarization.
 
 ## Features
