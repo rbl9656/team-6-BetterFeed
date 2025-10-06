@@ -134,13 +134,13 @@ print(f"\nTotal articles fetched: {len(all_articles)}")
 print()
 
 # ============================================
-# Step 3: Insert articles as reels
+# Step 3: Insert articles as posts
 # ============================================
-print("STEP 3: Creating reels from articles")
+print("STEP 3: Creating posts from articles")
 print("-" * 40)
 
 user_ids = [user['id'] for user in sample_users]
-reel_count = 0
+post_count = 0
 
 for i, article in enumerate(all_articles[:15]):
     if not article.get('url'):
@@ -148,22 +148,23 @@ for i, article in enumerate(all_articles[:15]):
     
     user_id = user_ids[i % len(user_ids)]
     
-    reel = {
+    post = {
         'user_id': user_id,
         'article_url': article['url'],
         'title': article['title'][:100] if article['title'] else 'Untitled Article',
+        'content': article.get('description', '')[:500] if article.get('description') else '',
         'thumbnail_url': article.get('urlToImage'),
         'view_count': (i + 1) * 127
     }
     
     try:
-        result = supabase.table('reels').insert(reel).execute()
-        reel_count += 1
-        print(f"Created reel {reel_count}: {reel['title'][:50]}...")
+        result = supabase.table('posts').insert(post).execute()
+        post_count += 1
+        print(f"Created post {post_count}: {post['title'][:50]}...")
     except Exception as e:
-        print(f"Error creating reel: {str(e)[:100]}")
+        print(f"Error creating post: {str(e)[:100]}")
 
-print(f"\nSuccessfully created {reel_count} reels!")
+print(f"\nSuccessfully created {post_count} posts!")
 print()
 
 # ============================================
@@ -173,25 +174,25 @@ print("STEP 4: Creating sample interactions")
 print("-" * 40)
 
 try:
-    reels_response = supabase.table('reels').select('id').execute()
-    reel_ids = [reel['id'] for reel in reels_response.data]
+    posts_response = supabase.table('posts').select('id').execute()
+    post_ids = [post['id'] for post in posts_response.data]
     
-    if not reel_ids:
-        print("No reels found to create interactions")
+    if not post_ids:
+        print("No posts found to create interactions")
     else:
         import random
         interaction_count = 0
         
         for user_id in user_ids:
             num_interactions = random.randint(3, 7)
-            selected_reels = random.sample(reel_ids, min(num_interactions, len(reel_ids)))
+            selected_posts = random.sample(post_ids, min(num_interactions, len(post_ids)))
             
-            for reel_id in selected_reels:
+            for post_id in selected_posts:
                 interaction_type = random.choice(['like', 'like', 'save'])
                 
                 interaction = {
                     'user_id': user_id,
-                    'reel_id': reel_id,
+                    'post_id': post_id,
                     'interaction_type': interaction_type
                 }
                 
@@ -217,7 +218,7 @@ print("Database seeding complete!")
 print()
 print("Summary:")
 print(f"  - Users: {len(sample_users)}")
-print(f"  - Reels (from real articles): {reel_count}")
+print(f"  - Posts (from real articles): {post_count}")
 print(f"  - Ready to test your database!")
 print()
 print("IMPORTANT: Your test_connection.py still uses ANON key (which is correct)")

@@ -46,29 +46,31 @@ except Exception as e:
     print()
 
 # ============================================
-# Test 2: Read reels with real article data
+# Test 2: Read posts with real article data
 # ============================================
-print("TEST 2: Reading reels with real article data")
+print("TEST 2: Reading posts with real article data")
 print("-" * 40)
 try:
-    response = supabase.table('reels') \
+    response = supabase.table('posts') \
         .select("*, profiles(username)") \
         .order('created_at', desc=True) \
         .limit(5) \
         .execute()
     
-    print(f"Successfully queried reels with JOIN!")
-    print(f"Found {len(response.data)} reels (showing top 5)")
+    print(f"Successfully queried posts with JOIN!")
+    print(f"Found {len(response.data)} posts (showing top 5)")
     print()
     
-    for reel in response.data:
-        print(f"   Title: {reel['title']}")
-        print(f"   Creator: @{reel['profiles']['username']}")
-        print(f"   Views: {reel['view_count']}")
-        print(f"   Article URL: {reel['article_url'][:60]}...")
+    for post in response.data:
+        print(f"   Title: {post['title']}")
+        print(f"   Creator: @{post['profiles']['username']}")
+        print(f"   Views: {post['view_count']}")
+        print(f"   Article URL: {post['article_url'][:60]}...")
+        if post.get('content'):
+            print(f"   Content: {post['content'][:80]}...")
         print()
 except Exception as e:
-    print(f"Error reading reels: {e}")
+    print(f"Error reading posts: {e}")
     print()
 
 # ============================================
@@ -98,28 +100,30 @@ except Exception as e:
     print()
 
 # ============================================
-# Test 4: Find most popular reel
+# Test 4: Find most popular post
 # ============================================
-print("TEST 4: Finding most popular reel")
+print("TEST 4: Finding most popular post")
 print("-" * 40)
 try:
-    # Get reel with most views
-    response = supabase.table('reels') \
-        .select("title, view_count, article_url, profiles(username)") \
+    # Get post with most views
+    response = supabase.table('posts') \
+        .select("title, view_count, article_url, content, profiles(username)") \
         .order('view_count', desc=True) \
         .limit(1) \
         .execute()
     
     if response.data:
-        top_reel = response.data[0]
-        print(f"Most popular reel:")
-        print(f"   Title: '{top_reel['title']}'")
-        print(f"   Creator: @{top_reel['profiles']['username']}")
-        print(f"   Views: {top_reel['view_count']:,}")
-        print(f"   URL: {top_reel['article_url']}")
+        top_post = response.data[0]
+        print(f"Most popular post:")
+        print(f"   Title: '{top_post['title']}'")
+        print(f"   Creator: @{top_post['profiles']['username']}")
+        print(f"   Views: {top_post['view_count']:,}")
+        print(f"   URL: {top_post['article_url']}")
+        if top_post.get('content'):
+            print(f"   Content: {top_post['content'][:100]}...")
     print()
 except Exception as e:
-    print(f"Error finding popular reel: {e}")
+    print(f"Error finding popular post: {e}")
     print()
 
 # ============================================
@@ -128,14 +132,15 @@ except Exception as e:
 print("TEST 5: Testing Row Level Security")
 print("-" * 40)
 try:
-    # Try to insert a reel without authentication
-    test_reel = {
+    # Try to insert a post without authentication
+    test_post = {
         "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         "article_url": "https://test.com/article",
-        "title": "Test Reel"
+        "title": "Test Post",
+        "content": "Test content"
     }
     
-    response = supabase.table('reels').insert(test_reel).execute()
+    response = supabase.table('posts').insert(test_post).execute()
     print(f"WARNING: Insert succeeded without auth (RLS might not be configured)")
     print()
 except Exception as e:
@@ -150,14 +155,14 @@ except Exception as e:
 print("TEST 6: Verifying article URLs from API")
 print("-" * 40)
 try:
-    response = supabase.table('reels') \
+    response = supabase.table('posts') \
         .select("article_url") \
         .limit(3) \
         .execute()
     
     print("Sample article URLs from NewsAPI:")
-    for i, reel in enumerate(response.data, 1):
-        print(f"   {i}. {reel['article_url']}")
+    for i, post in enumerate(response.data, 1):
+        print(f"   {i}. {post['article_url']}")
     print()
 except Exception as e:
     print(f"Error reading article URLs: {e}")
@@ -170,39 +175,41 @@ print("TEST 7: Finding most active user")
 print("-" * 40)
 try:
     response = supabase.table('profiles') \
-        .select("username, reels(count)") \
+        .select("username, posts(count)") \
         .execute()
     
-    # Find user with most reels
+    # Find user with most posts
     if response.data:
-        user_reel_counts = [(user['username'], len(user['reels'])) for user in response.data]
-        user_reel_counts.sort(key=lambda x: x[1], reverse=True)
+        user_post_counts = [(user['username'], len(user['posts'])) for user in response.data]
+        user_post_counts.sort(key=lambda x: x[1], reverse=True)
         
         print(f"Most active creators:")
-        for username, count in user_reel_counts[:3]:
-            print(f"   @{username}: {count} reels")
+        for username, count in user_post_counts[:3]:
+            print(f"   @{username}: {count} posts")
     print()
 except Exception as e:
     print(f"Error finding active users: {e}")
     print()
 
 # ============================================
-# Test 8: Get reels with their interaction counts
+# Test 8: Get posts with their interaction counts
 # ============================================
-print("TEST 8: Reels with engagement metrics")
+print("TEST 8: Posts with engagement metrics")
 print("-" * 40)
 try:
-    response = supabase.table('reels') \
-        .select("title, view_count, interactions(count)") \
+    response = supabase.table('posts') \
+        .select("title, view_count, content, interactions(count)") \
         .order('view_count', desc=True) \
         .limit(3) \
         .execute()
     
-    print(f"Top reels by engagement:")
-    for reel in response.data:
-        interaction_count = len(reel['interactions'])
-        print(f"   '{reel['title'][:60]}...'")
-        print(f"      Views: {reel['view_count']} | Interactions: {interaction_count}")
+    print(f"Top posts by engagement:")
+    for post in response.data:
+        interaction_count = len(post['interactions'])
+        print(f"   '{post['title'][:60]}...'")
+        print(f"      Views: {post['view_count']} | Interactions: {interaction_count}")
+        if post.get('content'):
+            print(f"      Content: {post['content'][:80]}...")
     print()
 except Exception as e:
     print(f"Error getting engagement metrics: {e}")
