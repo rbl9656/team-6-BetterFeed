@@ -1,7 +1,7 @@
 erDiagram
-    profiles ||--o{ reels : creates
+    profiles ||--o{ posts : creates
     profiles ||--o{ interactions : makes
-    reels ||--o{ interactions : receives
+    posts ||--o{ interactions : receives
 
     profiles {
         uuid id PK
@@ -11,11 +11,12 @@ erDiagram
         text avatar_url
     }
 
-    reels {
+    posts {
         bigint id PK
         uuid user_id FK
         text article_url
         text title
+        text content
         text thumbnail_url
         integer view_count
         timestamptz created_at
@@ -25,7 +26,7 @@ erDiagram
     interactions {
         bigint id PK
         uuid user_id FK
-        bigint reel_id FK
+        bigint post_id FK
         text interaction_type
         timestamptz created_at
     }
