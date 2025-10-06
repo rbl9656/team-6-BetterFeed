@@ -1,6 +1,6 @@
 # BetterFeed
 
-A smart feed application for scrolling through condensed academic articles presented in a TikTok-style interface. Users can discover, interact with, and save articles from a curated feed powered by real news data.
+An AI-powered smart feed application for scrolling through condensed academic articles presented in a TikTok-style interface. Users can discover, interact with, and save articles from a curated feed powered by real news data.
 
 **Team Members**: Temirlan Amanzhanov, Kyle Clary, Robbie Liesegang, Veyd Trivedi
 
