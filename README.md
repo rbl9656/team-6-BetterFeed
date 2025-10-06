@@ -112,7 +112,7 @@ All tables implement Row Level Security (RLS) with the following policies:
 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/rbl9656/team-6-BetterFeed.git
 cd team-6-BetterFeed
 ```
 
