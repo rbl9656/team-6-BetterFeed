@@ -1,5 +1,5 @@
 -- ============================================
--- SEED DATA FOR ARTICLE REELS APP
+-- SEED DATA FOR BetterFeed
 -- ============================================
 -- Note: This project primarily uses Python (seed.py) for data seeding 
 -- because it fetches real articles from NewsAPI.

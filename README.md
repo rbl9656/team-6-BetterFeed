@@ -113,7 +113,7 @@ All tables implement Row Level Security (RLS) with the following policies:
 
 ```bash
 git clone <repository-url>
-cd team-6-reels
+cd team-6-BetterFeed
 ```
 
 2. Set Up Python Environment

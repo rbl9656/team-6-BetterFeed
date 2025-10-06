@@ -22,7 +22,7 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY:
 # Initialize the Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-print("Testing Supabase Connection for Article Reels App")
+print("Testing Supabase Connection for BetterFeed")
 print("=" * 60)
 print()
 
