@@ -1,0 +1,31 @@
+erDiagram
+    profiles ||--o{ reels : creates
+    profiles ||--o{ interactions : makes
+    reels ||--o{ interactions : receives
+
+    profiles {
+        uuid id PK
+        text email UK
+        text username UK
+        timestamptz created_at
+        text avatar_url
+    }
+
+    reels {
+        bigint id PK
+        uuid user_id FK
+        text article_url
+        text title
+        text thumbnail_url
+        integer view_count
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    interactions {
+        bigint id PK
+        uuid user_id FK
+        bigint reel_id FK
+        text interaction_type
+        timestamptz created_at
+    }
