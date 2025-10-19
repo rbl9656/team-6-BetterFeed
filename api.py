@@ -114,7 +114,7 @@ def create_post(post: dict):
     return apiresponse.data
 
 
-# endpoint toupdate post title by id
+# endpoint to update post title by id
 @app.put("/posts/{post_id}")
 def update_post_title(post_id: str, updated_title: str):
     # check if post exists
@@ -130,7 +130,7 @@ def update_post_title(post_id: str, updated_title: str):
     return apiresponse.data
 
 
-# endpoint todelete post by id
+# endpoint to delete post by id
 @app.delete("/posts/{post_id}")
 def delete_post(post_id: str):
     # check if post exists
@@ -163,3 +163,94 @@ def get_interactions_by_post_id(post_id: str):
         .execute()
     )
     return apiresponse.data
+
+
+# endpoint to delete an interaction
+@app.delete("/interactions")
+def delete_interaction(interaction: dict):
+    # use all fields to identify interaction correctly
+    required = ["user_id", "post_id", "interaction_type"]
+    for field in required:
+        if field not in interaction:
+            raise HTTPException(status_code=400, detail=f"Missing required {field} field")
+    # check if interaction exists
+    existing = check_interaction_exists(
+        interaction["user_id"],
+        interaction["post_id"],
+        interaction["interaction_type"],
+    )
+    if not existing[0]:
+        raise HTTPException(status_code=404, detail=existing[1])
+    apiresponse = (
+        supabase.table("interactions")
+        .delete()
+        .eq("user_id", interaction["user_id"])
+        .eq("post_id", interaction["post_id"])
+        .eq("interaction_type", interaction["interaction_type"])
+        .execute()
+    )
+    return apiresponse.data
+
+
+# endpoint to sign up new user
+@app.post("/signup")
+def sign_up_user(credentials: dict):
+    required = ["email", "password", "username"]
+    for field in required:
+        if field not in credentials:
+            raise HTTPException(
+                status_code=400, detail=f'Missing required "{field}" field'
+            )
+    
+    # create user in auth
+    auth_response = supabase.auth.sign_up(
+        {
+            "email": credentials["email"],
+            "password": credentials["password"],
+        }
+    )
+    if auth_response.user is None:
+        raise HTTPException(status_code=400, detail="Error creating user")
+    
+    # create user profile
+    profile = {
+        "id": auth_response.user.id,
+        "email": credentials["email"],
+        "username": credentials["username"],
+    }
+    profile_response = supabase.table("profiles").insert(profile).execute()
+    return {"auth": auth_response.user, "profile": profile_response.data}
+
+
+# endpoint to log in user
+@app.post("/login")
+def log_in_user(credentials: dict):
+    required = ["email", "password"]
+    for field in required:
+        if field not in credentials:
+            raise HTTPException(
+                status_code=400, detail=f'Missing required "{field}" field'
+            )
+    
+    auth_response = supabase.auth.sign_in_with_password(
+        {
+            "email": credentials["email"],
+            "password": credentials["password"],
+        }
+    )
+    if auth_response.user is None:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {
+        "user": auth_response.user,
+        "session": auth_response.session,
+        "access_token": auth_response.session.access_token
+    }
+
+# endpoint to reset password
+@app.post("/reset-password")
+def reset_password(email_data: dict):
+    if "email" not in email_data or email_data["email"] == "":
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    supabase.auth.reset_password_for_email(email_data["email"])
+    return {"message": "Password reset email sent"}
