@@ -37,7 +37,6 @@ The BetterFeed API provides a RESTful interface for managing user authentication
 #### Authentication
 - `POST /signup` - Register new user with email, password, and username
 - `POST /login` - Authenticate user and receive access token
-- `POST /reset-password` - Send password reset email
 
 #### Posts
 - `GET /posts` - List all posts

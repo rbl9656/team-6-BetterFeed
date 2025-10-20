@@ -172,7 +172,9 @@ def delete_interaction(interaction: dict):
     required = ["user_id", "post_id", "interaction_type"]
     for field in required:
         if field not in interaction:
-            raise HTTPException(status_code=400, detail=f"Missing required {field} field")
+            raise HTTPException(
+                status_code=400, detail=f"Missing required {field} field"
+            )
     # check if interaction exists
     existing = check_interaction_exists(
         interaction["user_id"],
@@ -201,7 +203,7 @@ def sign_up_user(credentials: dict):
             raise HTTPException(
                 status_code=400, detail=f'Missing required "{field}" field'
             )
-    
+
     # create user in auth
     auth_response = supabase.auth.sign_up(
         {
@@ -211,7 +213,7 @@ def sign_up_user(credentials: dict):
     )
     if auth_response.user is None:
         raise HTTPException(status_code=400, detail="Error creating user")
-    
+
     # create user profile
     profile = {
         "id": auth_response.user.id,
@@ -231,7 +233,7 @@ def log_in_user(credentials: dict):
             raise HTTPException(
                 status_code=400, detail=f'Missing required "{field}" field'
             )
-    
+
     auth_response = supabase.auth.sign_in_with_password(
         {
             "email": credentials["email"],
@@ -243,14 +245,5 @@ def log_in_user(credentials: dict):
     return {
         "user": auth_response.user,
         "session": auth_response.session,
-        "access_token": auth_response.session.access_token
+        "access_token": auth_response.session.access_token,
     }
-
-# endpoint to reset password
-@app.post("/reset-password")
-def reset_password(email_data: dict):
-    if "email" not in email_data or email_data["email"] == "":
-        raise HTTPException(status_code=400, detail="Email is required")
-    
-    supabase.auth.reset_password_for_email(email_data["email"])
-    return {"message": "Password reset email sent"}
