@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 from dotenv import load_dotenv
 from supabase import create_client
+from supabase._sync.client import SyncClient
+from typing import Annotated, TypedDict
 
 # load environment variables
 load_dotenv()
@@ -14,60 +17,34 @@ supabase = create_client(
 # authenticate user with service key
 supabase.postgrest.auth(os.getenv("SUPABASE_SERVICE_KEY"))
 
-
-def check_post_exists(post_id: str):
-    post = supabase.table("posts").select("*").eq("id", post_id).execute()
-    if not post.data:
-        return (False, "Post not found")
-    return (True, post.data[0])
+# set up HTTPBearer for token authentication
+security = HTTPBearer()
 
 
-def check_user_exists(user_id: str):
-    user = supabase.table("profiles").select("*").eq("id", user_id).execute()
-    if not user.data:
-        return (False, "User not found")
-    return (True, user.data[0])
+class AuthResponse(TypedDict):
+    user: dict
+    client: SyncClient
 
 
-def check_interaction_exists(user_id: str, post_id: str, interaction_type: str):
-    interaction = (
-        supabase.table("interactions")
-        .select("*")
-        .eq("user_id", user_id)
-        .eq("post_id", post_id)
-        .eq("interaction_type", interaction_type)
-        .execute()
-    )
-    if not interaction.data:
-        return (False, "Interaction not found")
-    return (True, interaction.data[0])
+# auth middleware
+def auth(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> AuthResponse:
+    token = credentials.credentials
+    try:
+        response = supabase.auth.get_user(token)
+        user_client: SyncClient = create_client(
+            os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY")
+        )
+        user_client.postgrest.auth(token)
+        return {"user": response.user, "client": user_client}
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, detail=f"Invalid or expired token: {str(e)}"
+        )
 
 
-def validate_interaction(interaction: dict):
-    required = ["user_id", "post_id", "interaction_type"]
-    for field in required:
-        if field not in interaction:
-            return (False, f'Missing required "{field}" field')
-    # check if interaction type is valid
-    if interaction["interaction_type"] not in ["like", "save"]:
-        return (False, "Invalid interaction type")
-    # check if post exists
-    post = check_post_exists(interaction["post_id"])
-    if not post[0]:
-        return (False, post[1])
-    # check if user exists
-    user = check_user_exists(interaction["user_id"])
-    if not user[0]:
-        return (False, user[1])
-    # check if interaction already exists
-    interaction = check_interaction_exists(
-        interaction["user_id"],
-        interaction["post_id"],
-        interaction["interaction_type"],
-    )
-    if interaction[0]:
-        return (False, "Interaction already exists")
-    return (True, "Interaction is valid")
+auth_deps = Annotated[AuthResponse, Depends(auth)]
 
 
 """
@@ -84,7 +61,7 @@ def get_all_posts():
 
 # endpoint to get one username by post id
 @app.get("/username/{post_id}")
-def get_username_by_post_id(post_id: str):
+def get_username_by_post_id(post_id: int):
     apiresponse = (
         supabase.table("posts")
         .select("*,profiles(username)")
@@ -99,99 +76,127 @@ def get_username_by_post_id(post_id: str):
 
 # endpoint to create a new post with validation
 @app.post("/posts")
-def create_post(post: dict):
-    required = ["user_id", "title", "content", "article_url"]
+def create_post(post: dict, auth_response: auth_deps):
+    required = ["title", "content", "article_url"]
     for field in required:
         if field not in post:
             raise HTTPException(
                 status_code=400, detail=f'Missing required "{field}" field'
             )
-    # check if user exists
-    user = check_user_exists(post["user_id"])
-    if not user[0]:
-        raise HTTPException(status_code=404, detail=user[1])
-    apiresponse = supabase.table("posts").insert(post).execute()
+    post["user_id"] = auth_response["user"].id
+    user_client = auth_response["client"]
+    apiresponse = user_client.table("posts").insert(post).execute()
     return apiresponse.data
 
 
 # endpoint to update post title by id
 @app.put("/posts/{post_id}")
-def update_post_title(post_id: str, updated_title: str):
+def update_post_title(
+    post_id: int, updated_title: str, auth_response: auth_deps
+):
+    user_client = auth_response["client"]
     # check if post exists
-    post = check_post_exists(post_id)
-    if not post[0]:
-        raise HTTPException(status_code=404, detail=post[1])
-    apiresponse = (
-        supabase.table("posts")
-        .update({"title": updated_title})
-        .eq("id", post_id)
-        .execute()
-    )
+    try:
+        apiresponse = (
+            user_client.table("posts")
+            .update({"title": updated_title})
+            .eq("id", post_id)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error updating post: {str(e)}"
+        )
+    if not apiresponse.data:
+        raise HTTPException(
+            status_code=404, detail="Post not found or unauthorized"
+        )
     return apiresponse.data
 
 
 # endpoint to delete post by id
 @app.delete("/posts/{post_id}")
-def delete_post(post_id: str):
-    # check if post exists
-    post = check_post_exists(post_id)
-    if not post[0]:
-        raise HTTPException(status_code=404, detail=post[1])
-    apiresponse = supabase.table("posts").delete().eq("id", post_id).execute()
+def delete_post(post_id: int, auth_response: auth_deps):
+    user_client = auth_response["client"]
+    try:
+        apiresponse = (
+            user_client.table("posts").delete().eq("id", post_id).execute()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting post: {str(e)}"
+        )
+    if not apiresponse.data:
+        raise HTTPException(
+            status_code=404, detail="Post not found or unauthorized"
+        )
     return apiresponse.data
 
 
 # endpoint to create a new interaction
 @app.post("/interactions")
-def create_interaction(interaction: dict):
-    validation = validate_interaction(interaction)
-    if not validation[0]:
-        raise HTTPException(status_code=400, detail=validation[1])
-    apiresponse = supabase.table("interactions").insert(interaction).execute()
+def create_interaction(interaction: dict, auth_response: auth_deps):
+    user_client = auth_response["client"]
+    try:
+        apiresponse = (
+            user_client.table("interactions").insert(interaction).execute()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating interaction: {str(e)}"
+        )
+    if not apiresponse.data:
+        raise HTTPException(
+            status_code=400, detail="Invalid interaction or unauthorized"
+        )
     return apiresponse.data
 
 
 @app.get("/interactions/{post_id}")
-def get_interactions_by_post_id(post_id: str):
-    post = check_post_exists(post_id)
-    if not post[0]:
-        raise HTTPException(status_code=404, detail=post[1])
-    apiresponse = (
-        supabase.table("interactions")
-        .select("*")
-        .eq("post_id", post_id)
-        .execute()
-    )
+def get_interactions_by_post_id(post_id: int):
+    try:
+        apiresponse = (
+            supabase.table("interactions")
+            .select("*")
+            .eq("post_id", post_id)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting interactions: {str(e)}"
+        )
+    if not apiresponse.data:
+        raise HTTPException(
+            status_code=404, detail="Interactions not found or unauthorized"
+        )
     return apiresponse.data
 
 
 # endpoint to delete an interaction
-@app.delete("/interactions")
-def delete_interaction(interaction: dict):
-    # use all fields to identify interaction correctly
-    required = ["user_id", "post_id", "interaction_type"]
-    for field in required:
-        if field not in interaction:
-            raise HTTPException(
-                status_code=400, detail=f"Missing required {field} field"
-            )
-    # check if interaction exists
-    existing = check_interaction_exists(
-        interaction["user_id"],
-        interaction["post_id"],
-        interaction["interaction_type"],
-    )
-    if not existing[0]:
-        raise HTTPException(status_code=404, detail=existing[1])
-    apiresponse = (
-        supabase.table("interactions")
-        .delete()
-        .eq("user_id", interaction["user_id"])
-        .eq("post_id", interaction["post_id"])
-        .eq("interaction_type", interaction["interaction_type"])
-        .execute()
-    )
+@app.delete("/interactions/{interaction_id}")
+def delete_interaction(interaction_id: int, auth_response: auth_deps):
+    user_client = auth_response["client"]
+    try:
+        apiresponse = (
+            user_client.table("interactions")
+            .delete()
+            .eq("id", interaction_id)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting interaction: {str(e)}"
+        )
+    if not apiresponse.data:
+        raise HTTPException(
+            status_code=404, detail="Interaction not found or unauthorized"
+        )
     return apiresponse.data
+
+
+"""
+auth
+"""
 
 
 # endpoint to sign up new user
