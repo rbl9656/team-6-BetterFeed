@@ -13,6 +13,7 @@ An AI-powered smart feed application for scrolling through condensed academic ar
 - ❤️ **Interactions**: Like and save articles for later reading
 - 📊 **Engagement Metrics**: View counts and interaction statistics
 - 🔒 **Secure**: Row Level Security (RLS) policies ensure data privacy
+- 🔐 **Authentication**: Email/password-based user authentication with password reset
 
 ## Database Design
 
@@ -29,9 +30,13 @@ All tables use Row Level Security (RLS) to ensure users can only modify their ow
 ## API Documentation
 
 ### What it does
-The BetterFeed API provides a RESTful interface for managing posts and interactions. It allows users to create and manage article posts, and tracks user engagement through likes and saves.
+The BetterFeed API provides a RESTful interface for managing user authentication, posts, and interactions. It handles user registration and login, allows authenticated users to create and manage article posts, and tracks user engagement through likes and saves.
 
 ### API Endpoints
+
+#### Authentication
+- `POST /signup` - Register new user with email, password, and username
+- `POST /login` - Authenticate user and receive access token
 
 #### Posts
 - `GET /posts` - List all posts
@@ -46,7 +51,7 @@ The BetterFeed API provides a RESTful interface for managing posts and interacti
 - `DELETE /interactions` - Remove interaction (unlike or unsave)
 
 ### Key Business Rules
-Each post requires a valid user, title, content, and article URL. Interactions (likes and saves) are tracked per user and prevent duplicates - a user cannot like or save the same post twice. Posts cannot be deleted if they have existing interactions to maintain data integrity.
+Users must create an account before posting content. Each post requires a valid user, title, content, and article URL. Interactions (likes and saves) are tracked per user and prevent duplicates - a user cannot like or save the same post twice. Posts cannot be deleted if they have existing interactions to maintain data integrity.
 
 ### Entity Relationship Diagram
 
@@ -208,16 +213,62 @@ http://localhost:8000/docs
 
 This will open the Swagger UI where you can test all endpoints interactively.
 
-3. Test the API
+3. Configure Email Settings (Optional for Testing)
 
-#### Step 1: Create a Post
+For easier testing without email verification:
+- Go to your Supabase Dashboard
+- Navigate to **Authentication** → **Providers** → **Email**
+- **Disable** "Confirm email" (users can sign up without email verification)
+- Save changes
+
+**Note**: In production, keep email confirmation enabled for security.
+
+4. Test Authentication Flow
+
+#### Step 1: Sign Up a New User
+
+In the `/docs` interface:
+- Click on **POST /signup**
+- Click **"Try it out"**
+- Enter the request body (use a real email domain):
+```json
+{
+  "email": "testuser@gmail.com",
+  "password": "securepassword123",
+  "username": "testuser"
+}
+```
+- Click **"Execute"**
+- **Expected Response**: Status 200 with user data and profile information
+
+**If email confirmation is enabled**:
+- Check your email inbox for a confirmation link
+- Click the link to verify your account
+- You can now log in
+
+#### Step 2: Log In
+
+- Click on **POST /login**
+- Click **"Try it out"**
+- Enter credentials:
+```json
+{
+  "email": "testuser@gmail.com",
+  "password": "securepassword123"
+}
+```
+- Click **"Execute"**
+- **Expected Response**: Status 200 with user object, session, and `access_token`
+- **Save the `access_token`** - you'll need it for authenticated requests
+
+#### Step 3: Create a Post (Authenticated Request)
 
 - Click on **POST /posts**
 - Click **"Try it out"**
-- Enter post data (use a valid `user_id` from the profiles table):
+- Enter post data (use the `user_id` from your login response):
 ```json
 {
-  "user_id": "existing-user-id-from-database",
+  "user_id": "your-user-id-from-login",
   "title": "Interesting Article",
   "content": "Summary of the article...",
   "article_url": "https://example.com/article"
@@ -226,7 +277,7 @@ This will open the Swagger UI where you can test all endpoints interactively.
 - Click **"Execute"**
 - **Expected Response**: Status 200 with the created post data
 
-#### Step 2: Test Interactions
+#### Step 4: Test Interactions
 
 Create a like interaction:
 - Click on **POST /interactions**
@@ -244,9 +295,28 @@ Create a like interaction:
 
 Try creating the same interaction again - you should get an error: "Interaction already exists"
 
-4. Verify in Supabase Dashboard
+#### Step 5: Test Password Reset
+
+- Click on **POST /reset-password**
+- Click **"Try it out"**
+- Enter:
+```json
+{
+  "email": "testuser@gmail.com"
+}
+```
+- Click **"Execute"**
+- **Expected Response**: Status 200 with message "Password reset email sent"
+- Check your email for the password reset link
+
+5. Verify in Supabase Dashboard
 
 After testing, verify in your Supabase Dashboard:
+
+**Authentication Tab**:
+- Go to **Authentication** → **Users**
+- Confirm your test user appears with the correct email
+- Check if the user is "Confirmed" (green checkmark)
 
 **Database Tables**:
 - Go to **Table Editor**
@@ -254,10 +324,19 @@ After testing, verify in your Supabase Dashboard:
 - Check **posts** table - your test post should be there
 - Check **interactions** table - your like interaction should be recorded
 
-5. Common Issues and Solutions
+6. Common Issues and Solutions
+
+**Issue**: "Email address is invalid"
+- **Solution**: Use a real email domain (gmail.com, outlook.com) instead of example.com
+
+**Issue**: "User already registered"
+- **Solution**: Use a different email or delete the user from Supabase dashboard
+
+**Issue**: "Invalid email or password" on login
+- **Solution**: If email confirmation is enabled, check your email and confirm your account first
 
 **Issue**: "User not found" when creating posts
-- **Solution**: Use a valid `user_id` from the profiles table in your database (it's a UUID format)
+- **Solution**: Use the correct `user_id` from your login response (it's a UUID format)
 
 **Issue**: "Interaction already exists"
 - **Solution**: This is expected behavior - users cannot like/save the same post twice

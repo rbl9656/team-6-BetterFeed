@@ -192,3 +192,58 @@ def delete_interaction(interaction: dict):
         .execute()
     )
     return apiresponse.data
+
+
+# endpoint to sign up new user
+@app.post("/signup")
+def sign_up_user(credentials: dict):
+    required = ["email", "password", "username"]
+    for field in required:
+        if field not in credentials:
+            raise HTTPException(
+                status_code=400, detail=f'Missing required "{field}" field'
+            )
+
+    # create user in auth
+    auth_response = supabase.auth.sign_up(
+        {
+            "email": credentials["email"],
+            "password": credentials["password"],
+        }
+    )
+    if auth_response.user is None:
+        raise HTTPException(status_code=400, detail="Error creating user")
+
+    # create user profile
+    profile = {
+        "id": auth_response.user.id,
+        "email": credentials["email"],
+        "username": credentials["username"],
+    }
+    profile_response = supabase.table("profiles").insert(profile).execute()
+    return {"auth": auth_response.user, "profile": profile_response.data}
+
+
+# endpoint to log in user
+@app.post("/login")
+def log_in_user(credentials: dict):
+    required = ["email", "password"]
+    for field in required:
+        if field not in credentials:
+            raise HTTPException(
+                status_code=400, detail=f'Missing required "{field}" field'
+            )
+
+    auth_response = supabase.auth.sign_in_with_password(
+        {
+            "email": credentials["email"],
+            "password": credentials["password"],
+        }
+    )
+    if auth_response.user is None:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {
+        "user": auth_response.user,
+        "session": auth_response.session,
+        "access_token": auth_response.session.access_token,
+    }
